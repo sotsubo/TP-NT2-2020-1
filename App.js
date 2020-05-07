@@ -1,20 +1,20 @@
 import React,{Component} from 'react';
 import { 
-  StyleSheet, Text, View,ScrollView, TouchableOpacity 
+  StyleSheet, Text, View, TouchableOpacity, Vibration
 } from 'react-native';
-import moment from 'moment';
 
 
 function Timer ({interval, style}){
   const pad = (n) => n < 10 ? '0' + n: n
 
-  const duration=moment.duration(interval);
-  const centiseconds= Math.floor(duration.milliseconds()/10);
+  const minutes=Math.trunc(interval/60);
+  const seconds=Math.trunc((interval/60%1)*60);
+
   return (
     <View style={styles.timerContainer}>
-      <Text style={style}>{pad (duration.minutes())}:</Text>
-      <Text style={style}>{pad(duration.seconds())},</Text>
-      <Text style={style}>{pad(centiseconds)}</Text>
+      <Text style={style}>{pad(minutes)}</Text>
+      <Text style={styles.timerMiddle}>:</Text>
+      <Text style={style}>{pad(seconds)}</Text>
     </View>
     )
 }
@@ -33,167 +33,313 @@ function RoundButton({title,color, background, onPress, disabled}){
   )
 
 }
-function Lap({number, interval, fastest, slowest}){
-  const lapStyle = [
-    styles.lapText,
-    fastest && styles.fastest,
-    slowest && styles.slowest,
-  ]
-  return (
-    <View style={styles.lap}>
-      <Text style={lapStyle}>Lap {number}</Text>
-      <Timer style={[lapStyle, styles.lapTimer]} interval={interval} />
-    </View>
-  )
-}
-
-function LapsTable( {laps, timer }){
-  const finishedLaps= laps.slice(1)
-  let min = Number.MAX_SAFE_INTEGER
-  let max = Number.MIN_SAFE_INTEGER
-  if(finishedLaps.length>=2){
-    finishedLaps.forEach(lap =>{
-      if(lap<min) min=lap
-      if(lap>max) max=lap
-    })
-  }
-  return (
-    <ScrollView style={styles.scrollView}>
-      {laps.map((lap, index)=> (
-        <Lap 
-          number={laps.length -index} 
-          key={laps.length -index}
-          interval={index===0 ? timer + lap: lap}
-          fastest={lap===min}
-          slowest={lap===max}
-            />
-      ))}
-    </ScrollView>
-  )
-}
 function ButtonRow({children}){
   return (
   <View style={styles.buttonsRow}>{children}</View>
   )
 }
+function ButtonRowAdjust({children}){
+  return (
+  <View style={[styles.timerContainer ,    {flexDirection: 'row'}]} >{children}</View>
+
+  )
+}
+function ButtonAdjust({title,color,fontSize, background, onPress, disabled}){
+  return (
+    <TouchableOpacity 
+    onPress={()=> onPress()} 
+    style = {[styles.buttonAdjust, { backgroundColor:background}]}  
+    activeOpacity={disabled ? 1.0 : 0.7 } 
+    >
+      <View >
+        <Text style={[{color:'#FFFFFF',fontSize:30}]}  > {title}</Text>
+      </View>
+      </TouchableOpacity>
+  )
+
+}
+
 export default class App extends Component {
   constructor (props){
     super(props)
     this.state={
-      start:0,
-      now:0,
+      focusState:true,
+      estado:'Focus',
+      userFocusTime:1500,
+      userRestTime:300,
+      timer:1500,
+      onStart:true,
+      onPause:false,
+      onResume:false,
+      onSetting:true,
+      reset:true,
+      inputMinutes:25,
       laps:[ ]
     } 
   }
   componentWillUnmount(){
-    clearInterval(this.timer)
+    clearInterval(this.counter)
   }
   start=()=>{
-    const now = new Date().getTime()
     this.setState({
-      start: now,
-      now,
+      start: 0,
+      now: 0,
       laps: [0],
     })
-    this.timer=setInterval(()=>{
-      this.setState({ now: new Date().getTime()}) 
-    },100)
-
-  }
-  lap =()=>{
-    const timestamp = new Date().getTime()
-
-    const {laps, now, start}=this.state
-    const [firstLap, ...other] = laps
+    if(this.state.reset){
     this.setState({
-      laps:[0, firstLap+now - start , ...other],
-      start: timestamp,
-    })
+        reset:false,
+        timer:this.state.userFocusTime,
+              })
+    }
+    this.counter=setInterval(()=>{
+
+    this.setState(prevState => {return { timer: prevState.timer -1,
+                                          start: prevState.start +1,
+                                          onStart:false,
+                                          onPause:true,
+                                          onSetting:false,
+                                          }})
+
+    if(this.state.timer===0){
+        clearInterval(this.counter)
+        Vibration.vibrate([500,1500,2500]
+          )
+      
+      if (this.state.focusState) {
+        this.setState ({
+          focusState:false,
+          timer:this.state.userRestTime,
+          estado:'Descanso',
+
+        })
+        }
+      else{
+        this.setState ({
+          focusState:true,
+          estado:'Focus',
+          timer:this.state.userFocusTime
+        })
+        }
+
+      this.start();    
+      }
+    },1000)
+
   }
+ 
   stop = () => {
     clearInterval(this.timer)
-    const {laps, now, start}=this.state
-    const [firstLap, ...other] = laps
     this.setState({
-      laps:[firstLap+now - start , ...other],
       start: 0,
       now:0
     })
   }
-  reset =() => {
+  resume = () => {
+    this.counter=setInterval(()=>{
+      this.setState(prevState => {return { timer: prevState.timer -1,
+                                          start: prevState.start +1,
+                                          onStart:false,
+                                          onPause:true
+                                        }})
+      
+
+      if(this.state.timer===0){
+
+        clearInterval(this.counter)
+        Vibration.vibrate([500,1500,2500])
+      }
+    },1000)
+  }
+  pause = () => {
+    clearInterval(this.counter)
     this.setState({
-      laps:[],
-      start:0,
-      now:0,
+      onPause:false
     })
   }
-
-  resume = () =>{
-    const now = new Date().getTime()
+  reset =() => {
+    clearInterval(this.counter)
     this.setState({
-      start:now,
-      now, 
+      userFocusTime:1500,
+      userRestTime:300,
+      onStart:true,
+      onPause:false,
+      onResume:false,
+      onSetting:true,
+      reset:true,
+      estado:'Focus',
+     
     })
-    this.timer=setInterval(()=>{
-      this.setState({ now: new Date().getTime()}) 
-    },100)
+  }
+  addMinuteFocus = () => {
+    if(this.state.userFocusTime <3540){
 
+    this.setState(prevState => {return { userFocusTime: prevState.userFocusTime +60   
+    }})
+  }
+  }
+  restMinuteFocus = () => {
+    if(this.state.userFocusTime >60){
+      this.setState(prevState => {return { userFocusTime: prevState.userFocusTime -60   
+    }})
+   } 
+  }
+  addSecondFocus = () => {
+    if(this.state.userFocusTime <3599){
+
+    this.setState(prevState => {return { userFocusTime: prevState.userFocusTime +1   
+    }})
+  }
+  }
+  restSecondFocus = () => {
+    if(this.state.userFocusTime >1){
+      this.setState(prevState => {return { userFocusTime: prevState.userFocusTime -1   
+    }})
+   } 
   }
   
+  addMinuteRest =() => {
+  if(this.state.userRestTime <3540){
+    this.setState(prevState => {return { userRestTime: prevState.userRestTime +60    
+    }})
+  }
+  }
+  restMinuteRest =() => {
+    if(this.state.userRestTime >60){
+      this.setState(prevState => {return { userRestTime: prevState.userRestTime -60   
+      }})
+    }
+  }
+  addSecondRest =() => {
+    if(this.state.userRestTime <3599){
+      this.setState(prevState => {return { userRestTime: prevState.userRestTime +1    
+      }})
+    }
+    }
+    restSecondRest =() => {
+      if(this.state.userRestTime >1){
+        this.setState(prevState => {return { userRestTime: prevState.userRestTime -1   
+        }})
+      }
+    }
   render () {
-    const { now, start, laps}=this.state
-    const timer = now - start
+    const { onSetting, userRestTime, userFocusTime,timer, onStart,onPause,onResume}=this.state
+    
     return ( 
       <View style={styles.container}>
+        <Text     style={[ styles.title ,{ color:'#FFFFFF' }]}>{this.state.estado}</Text>
+        {!onStart &&  (
         <Timer 
-        interval={laps.reduce((total,curr) => total + curr,0) + timer} style={styles.timer}/>
-        {laps.length===0 && (
-          <ButtonRow>
-          <RoundButton 
-            title='Lap' 
-            color='#8B8B90' 
-            background='#151515'
-            disabled
-            />
+        interval={timer} style={styles.timer}/>
+        )}  
+        {onSetting && (
+          <Timer 
+          interval={userFocusTime} style={styles.timer}></Timer>
+        )} 
+          {onSetting && (
+          
+          <ButtonRowAdjust style={styles.timerContainer}>
+            <ButtonAdjust 
+              title='+' 
+              color='#FFFFFF' 
+              alignSelf='center'
+              onPress={this.addMinuteFocus}/>
+            <ButtonAdjust 
+              title='-' 
+              color='#FFFFFF' 
+              alignSelf='center'
+              onPress={this.restMinuteFocus}
+              />
+            <Text style={styles.timerMiddle}/>
+            <ButtonAdjust 
+              title='+' 
+              color='#FFFFFF' 
+              alignSelf='center'
+              onPress={this.addSecondFocus}/>
+            <ButtonAdjust 
+              title='-' 
+              color='#FFFFFF' 
+              alignSelf='center'
+              onPress={this.restSecondFocus}
+              />
+            
+          </ButtonRowAdjust>
+          )}  
+            {onSetting && (
+          
+          <Text style={[ styles.title ,{ alignItems: 'center',color:'#FFFFFF' }]}>Descanso</Text>
+          )}  
+          {onSetting && (
+          <Timer 
+          interval={ userRestTime} style={styles.timer}></Timer>
+          )}  
+          {onSetting && (
+      
+          <ButtonRowAdjust>
+            <ButtonAdjust 
+              title='+' 
+              color='#FFFFFF' 
+              alignSelf='center'
+              onPress={this.addMinuteRest}/>
+            <ButtonAdjust 
+              title='- ' 
+              color='#FFFFFF' 
+              alignSelf='center'
+              onPress={this.restMinuteRest}
+              />
+              
+            <ButtonAdjust 
+              title='+' 
+              color='#FFFFFF' 
+              alignSelf='center'
+              onPress={this.addSecondRest}/>
+            <ButtonAdjust 
+              title='-' 
+              color='#FFFFFF' 
+              alignSelf='center'
+              onPress={this.restSecondRest}/>
+
+          </ButtonRowAdjust>
+        
+        
+        )}
+        <ButtonRow>
+        
+      
+        {onStart &&  (
           <RoundButton 
             title='Start' 
             color='#50D167' 
             background='#1B361F'
             onPress={this.start}/>
-        </ButtonRow>
         
         )}
-        {start >0 && (
-          <ButtonRow>
+        {(!onStart && !onPause) &&  (
+      
           <RoundButton 
-            title='Lap' 
-            color='#FFFFFF' 
-            background='#3D3D3D'
-            onPress={this.lap}/>
-          <RoundButton 
-            title='Stop' 
-            color='#E33935' 
-            background='#3C1715'
-            onPress={this.stop}/>
-        </ButtonRow>
-        
-        )}
-        {laps.length>0 && start ===0 && (
-          <ButtonRow>
-          <RoundButton 
-            title='Reset' 
-            color='#FFFFFF' 
-            background='#3D3D3D'
-            onPress={this.lap}/>
-          <RoundButton 
-            title='Start' 
+            title='Resume' 
             color='#50D167' 
             background='#1B361F'
             onPress={this.resume}/>
-        </ButtonRow>
+          
         
         )}
-        <LapsTable laps={laps} timer={timer} />
+        {onPause && (
+       
+          <RoundButton 
+            title='Pause' 
+            color='#E33935' 
+            background='#3C1715'
+            onPress={this.pause}/>
+       
+        
+        )}
+        <RoundButton 
+            title='Reset' 
+            color='#8B8B90' 
+            background='#151515'
+            onPress={this.reset}/>
+        </ButtonRow>
        </View>
     );
   }
@@ -202,7 +348,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0D0D0D',
-    // '#0D0D0D',
     alignItems: 'center',
     paddingTop:130,
     paddingHorizontal: 20,
@@ -211,7 +356,33 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize:76,
     fontWeight:'200',
-    width:110
+    width:110,
+    // paddingLeft:0,
+    justifyContent:'center',
+    textAlign:'center',
+    alignContent:'center',
+    alignItems:'center'  
+  },
+  
+  title : {
+    color: '#FFFFFF',
+    fontSize:20,
+    fontWeight:'200',
+    width:110,
+    paddingLeft:0,
+    justifyContent:'center',
+    textAlign:'center',
+    paddingRight:0,
+  },
+  timerMiddle : {
+    color: '#FFFFFF',
+    fontSize:76,
+    fontWeight:'200',
+    width:30,
+    paddingLeft:0,
+    justifyContent:'center',
+    textAlign:'center',
+    paddingRight:0,
   },
   button:{
     width:80,
@@ -231,27 +402,32 @@ const styles = StyleSheet.create({
     justifyContent:'center',
     alignItems:'center'
   },
+  buttonAdjust:{
+    width:55,
+    height:30,
+    fontSize:76,
+
+    // borderRadius: 38,
+    // borderWidth:2,
+    justifyContent:'center',
+    alignItems:'center'
+  },
+  buttonRowAdjust : {
+    color: '#FFFFFF',
+    fontSize:76,
+    fontWeight:'200',
+    width:110,
+    paddingLeft:0,
+    paddingRight:0,
+  },
+ 
+  
   buttonsRow:{
     flexDirection: 'row',
     alignSelf:'stretch',
     justifyContent:'space-between',
     marginTop: 80, 
     marginBottom:30,
-  },
-  lapText:{
-    color:'#FFFFFF',
-    fontSize:18,
-  },
-  lapTimer:{
-    width:30
-  },
-
-  lap:{
-    flexDirection: 'row',
-    justifyContent:'space-between',
-    borderColor:'#151515',
-    borderTopWidth:1,   
-    paddingVertical: 10,
   },
 
   scrollView:{
