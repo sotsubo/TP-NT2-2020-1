@@ -1,8 +1,8 @@
 import React,{Component} from 'react';
 import { 
-  StyleSheet, Text, View, TouchableOpacity, Vibration
+  StyleSheet, Text, View, TouchableOpacity
 } from 'react-native';
-
+import {vibrate} from './utils'
 
 function Timer ({interval, style}){
   const pad = (n) => n < 10 ? '0' + n: n
@@ -80,12 +80,29 @@ export default class App extends Component {
   componentWillUnmount(){
     clearInterval(this.counter)
   }
+  checkTimer=()=>{
+         if(this.state.timer===0){
+            clearInterval(this.counter)
+            vibrate()
+            if (this.state.focusState) {
+              this.setState ({
+              focusState:false,
+              timer:this.state.userRestTime,
+              estado:'Descanso',
+              })
+              }
+            else{
+              this.setState ({
+              focusState:true,
+              estado:'Focus',
+              timer:this.state.userFocusTime
+              })
+            }
+            this.start();    
+            }
+               
+  }
   start=()=>{
-    this.setState({
-      start: 0,
-      now: 0,
-      laps: [0],
-    })
     if(this.state.reset){
     this.setState({
         reset:false,
@@ -93,41 +110,16 @@ export default class App extends Component {
               })
     }
     this.counter=setInterval(()=>{
-
-    this.setState(prevState => {return { timer: prevState.timer -1,
-                                          start: prevState.start +1,
-                                          onStart:false,
-                                          onPause:true,
-                                          onSetting:false,
-                                          }})
-
-    if(this.state.timer===0){
-        clearInterval(this.counter)
-        Vibration.vibrate([500,1500,2500]
-          )
-      
-      if (this.state.focusState) {
-        this.setState ({
-          focusState:false,
-          timer:this.state.userRestTime,
-          estado:'Descanso',
-
-        })
-        }
-      else{
-        this.setState ({
-          focusState:true,
-          estado:'Focus',
-          timer:this.state.userFocusTime
-        })
-        }
-
-      this.start();    
-      }
+      this.setState(prevState => {return { timer: prevState.timer -1,
+                                            start: prevState.start +1,
+                                            onStart:false,
+                                            onPause:true,
+                                            onSetting:false,
+                                            }})
+      this.checkTimer()
     },1000)
-
   }
- 
+  
   stop = () => {
     clearInterval(this.timer)
     this.setState({
@@ -142,15 +134,10 @@ export default class App extends Component {
                                           onStart:false,
                                           onPause:true
                                         }})
-      
-
-      if(this.state.timer===0){
-
-        clearInterval(this.counter)
-        Vibration.vibrate([500,1500,2500])
-      }
+      this.checkTimer()
     },1000)
   }
+  
   pause = () => {
     clearInterval(this.counter)
     this.setState({
@@ -428,17 +415,6 @@ const styles = StyleSheet.create({
     justifyContent:'space-between',
     marginTop: 80, 
     marginBottom:30,
-  },
-
-  scrollView:{
-    alignSelf:'stretch',
-    },
-  fastest:{
-    color:'#4BC05F',
-
-  },
-  slowest:{
-    color:'#CC3531'
   },
   timerContainer:{
     flexDirection: 'row'
