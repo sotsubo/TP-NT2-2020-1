@@ -5,6 +5,13 @@ Para este trabajo práctico, se pide a los alumnos implementar un Cronometro Pom
 
 El dispositivo vibrará para indicar cuando tomar un descanso o volver al trabajo, basado en unos valores por defecto: veinticinco (25) minutos para trabajo, cinco (5) minutos para descanso.
 
+Equipo 
+
+Sergio Otsubo
+Ramiro Slullitel 
+Tomas Moiron
+Gaston Franceschini
+Ezequiel Maldonado Riquelme
 
 ## Requerimientos
 - Las únicas librerias permitiras a importar serán las siguientes:
